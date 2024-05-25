@@ -1,0 +1,35 @@
+{
+  "verifiedAt": "2026-10-26 18:20:46 UTC",
+  "hostedApplicationVerified": false,
+  "postgresServiceTestsVerified": true,
+  "linuxDependencyInstallationVerified": true,
+  "applications": [
+    {
+      "application": "scopedesk",
+      "repository": "https://github.com/f20230125-sudo/scopedesk",
+      "sourceCommit": "8d036bbc65c4a0533db47dd8629252e72ebbe97b",
+      "sourceTree": "4f103de3eed6c2b91ff79780c3322446cccd3fbd",
+      "workflowRunId": 40376473352,
+      "workflowUrl": "https://github.com/f20230125-sudo/scopedesk/actions/runs/40376473352",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "sqlite",
+          "conclusion": "success",
+          "id": 121760771814,
+          "summaries": [
+            "100 passed in 2.98s"
+          ]
+        },
+        {
+          "name": "postgres",
+          "conclusion": "success",
+          "id": 121760772670,
+          "summaries": [
+            "100 passed in 4.86s"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -15,7 +15,7 @@ Once actual provider access is available:
 7. Recheck current official Flask deployment settings, deploy to the intended projects, and verify HTTPS `/health`, demo creation, full reviewed handoff journey, cookies, headers, cross-workspace denial and restart persistence. Record exact tested URLs and separate hosted evidence. `SCOPEDESK_LOOPDESK_URL` supplies the validated HTTPS CRM origin. Local development defaults to port 5055; production has no localhost link by default.
 8. Only after those checks pass, add a tested public link to the application materials. University submission remains manual.
 
-No PostgreSQL execution, remote CI execution or hosted verification is claimed. Provider authorisation is distinct from the publication permission already granted by the user. The packaged local application remains usable while provider access is pending.
+SQLite and PostgreSQL CI jobs now pass all 100 checks; exact run evidence is in `artifacts/ci-verification.json`. No deployed HTTPS or production Neon verification is claimed. Provider authorisation is distinct from publication permission. The packaged local application remains usable while the database connection is pending.
 
 ## Security review deployment gate
 
