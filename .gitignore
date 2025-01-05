@@ -1,0 +1,10 @@
+.venv/
+.local/
+instance/
+__pycache__/
+.pytest_cache/
+private/
+.env
+.env.*
+!.env.example
+.vercel/
