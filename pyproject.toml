@@ -1,0 +1,9 @@
+[project]
+name = "scopedesk"
+version = "1.0.0"
+description = "Source-linked ITAD enquiry qualification prototype"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

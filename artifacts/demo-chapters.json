@@ -1,0 +1,52 @@
+{
+  "recordedAt": "2026-10-26T07:39:19.015Z",
+  "captureWallSeconds": 73.77,
+  "captions": "Presentation captions added over the real local application. Business responses and downloads are real; all data is synthetic.",
+  "chapters": [
+    {
+      "seconds": 0.03,
+      "title": "ScopeDesk / Scope before sales",
+      "body": "Independent ITAD qualification prototype. Every enquiry, inventory row and correction remains traceable. Fictional data throughout."
+    },
+    {
+      "seconds": 7.46,
+      "title": "01 / Find the contradictions before replying",
+      "body": "The enquiry asks for 120 laptops and 20 loose drives. Wrong site allocations, overlapping equipment outcomes and off-site data work block review."
+    },
+    {
+      "seconds": 16.53,
+      "title": "02 / Follow the evidence",
+      "body": "Each finding links to original enquiry lines or CSV cells. Identifiers such as 0001 remain text. No drive count is inferred from laptops."
+    },
+    {
+      "seconds": 24.71,
+      "title": "03 / Record the customer clarification",
+      "body": "The response becomes a new immutable source: 80 laptops Dubai, 40 Sharjah; reuse equipment and destroy the media on-site before collection."
+    },
+    {
+      "seconds": 32.8,
+      "title": "04 / Reconcile equipment and media independently",
+      "body": "Source-linked corrections conserve the included quantities and clear the blockers. Laptop reuse and embedded-drive destruction coexist."
+    },
+    {
+      "seconds": 40.89,
+      "title": "05 / Freeze an immutable reviewed revision",
+      "body": "The printable brief separates equipment, embedded media and loose drives. It retains requirements, source references and outstanding access-window actions."
+    },
+    {
+      "seconds": 49.97,
+      "title": "06 / Preview the LoopDesk handoff",
+      "body": "The bounded JSON omits original documents and serial registers. The salesperson chooses existing CRM records and an owner before confirmation."
+    },
+    {
+      "seconds": 58.04,
+      "title": "07 / One case, one linked opportunity",
+      "body": "LoopDesk creates an IT asset disposition opportunity at New, with an unknown estimate and a next action from the scope. Repeating the import creates no duplicate."
+    },
+    {
+      "seconds": 65.25,
+      "title": "Reviewed history / ready for the next conversation",
+      "body": "Later revisions attach to the same opportunity and preserve CRM fields. Local SQLite flow verified; PostgreSQL and HTTPS remain unverified."
+    }
+  ]
+}
