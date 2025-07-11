@@ -35,7 +35,7 @@ def main():
             parser.error("Set SCOPEDESK_TEST_DATABASE_URL to a dedicated PostgreSQL test database.")
         if args.command=="test":env.pop("SCOPEDESK_TEST_DATABASE_URL",None)
         backend="postgres" if args.command=="test-postgres" else "sqlite"
-        return run([str(python),"-m","pytest","-q",f"--basetemp={ROOT/'.local'/('pytest-'+uuid.uuid4().hex)}",f"--junitxml=artifacts/pytest-{backend}.xml"])
+        return run([str(python),"-m","pytest","-q","-o",f"cache_dir={ROOT/'.local'/'pytest-cache'}",f"--basetemp={ROOT/'.local'/('pytest-'+uuid.uuid4().hex)}",f"--junitxml=artifacts/pytest-{backend}.xml"])
     if args.command in {"browser","record"}:return run(["node","scripts/"+("browser-check.mjs" if args.command=="browser" else "record-demo.mjs")])
     return run([str(python),"scripts/package-release.py"])
 

@@ -1,6 +1,49 @@
 """Fictional worked enquiry; corrections are deliberately left for the reviewer."""
 import copy
 from . import services as s
+from . import domain as d
+
+EXAMPLES = {
+    "approximate-monitors": dict(title="Approximate monitor count",client="Juniper Example Offices",mode="quantity",
+        shows="Approximate enquiry counts need acknowledgement and an explicit inventory count basis.",
+        enquiry="Please scope about 200 monitors at Dubai for reuse.\nOur attached store count lists 192; the final count is still to be confirmed.",
+        csv=b"item,quantity,site,category,identifier,unit\nMonitor,192,Dubai,equipment,MON-0001,items\n"),
+    "duplicate-register": dict(title="Repeated identifiers in a laptop register",client="Willow Example Studio",mode="register",
+        shows="Repeated identifiers need a recorded decision; leading zeros remain unchanged.",
+        enquiry="Please scope these three laptops at Sharjah for reuse.\nTwo register entries share serial 000042; please keep both entries pending our check.",
+        csv=b"item,site,category,identifier,unit\nLaptop,Sharjah,equipment,000042,items\nLaptop,Sharjah,equipment,000042,items\nLaptop,Sharjah,equipment,000007,items\n"),
+    "unsupported-unit": dict(title="Monitor list supplied in boxes",client="Elm Example Design",mode="quantity",
+        shows="A box count stays blocked until an item count and unit correction are recorded.",
+        enquiry="Please scope monitors at Dubai for reuse.\nThe list records four boxes; we have not confirmed the number of monitors inside.",
+        csv=b"item,quantity,site,category,identifier,unit\nMonitor,4,Dubai,equipment,BOX-0001,boxes\n"),
+}
+
+
+def create_example(db,wid,key):
+    if key not in EXAMPLES:
+        raise d.ValidationError("Choose one of the three available fictional examples.")
+    example = EXAMPLES[key]
+    cid = s.create_case(db,wid,example["client"],example["title"],example["enquiry"])
+    pid = s.preview(db,wid,cid,example["csv"],",",example["mode"],key+".csv")
+    mapping = {k:k for k in ("item","site","category","identifier","unit")}
+    if example["mode"] == "quantity":
+        mapping["quantity"] = "quantity"
+    s.map_preview(db,wid,cid,pid,mapping,1)
+    s.commit_import(db,wid,cid,pid,mapping,1)
+    c = s.case(db,wid,cid)
+    state = c["state"]
+    for allocation in state["allocations"]:
+        allocation.update(outcome="reuse",refs=allocation["refs"]+["S1:L1"])
+    item,quantity,site = ("Laptop",3,"Sharjah") if key == "duplicate-register" else ("Monitor",200 if key == "approximate-monitors" else 4,"Dubai")
+    state["requirements"] = [requirement("equipment",item,quantity,site,"S1:L1")]
+    if key == "approximate-monitors":
+        state["requirements"][0]["precision"] = "approximate"
+    elif key == "unsupported-unit":
+        # No item count is asserted by the enquiry; this is the unresolved box count from the CSV.
+        state["requirements"][0]["refs"] = ["S2:R1:quantity","S2:R1:unit"]
+        state["followups"] = [dict(text="Confirm the monitor item count before correcting the box quantity and unit.",refs=["S1:L2"])]
+    s.save_state(db,wid,cid,c["version"],state,"Loaded fictional example; unresolved count or identifier evidence remains visible.")
+    return cid
 
 ENQUIRY = """Please scope 120 laptops: 80 at Dubai and 40 at Sharjah.
 There are also 20 loose drives at Dubai; destroy these on-site before collection.
