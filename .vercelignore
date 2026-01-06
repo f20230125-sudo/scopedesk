@@ -1,0 +1,17 @@
+.venv
+.local
+instance
+private
+artifacts
+tests
+docs
+scripts
+examples
+.git
+.env
+*.zip
+.env*
+.vercel
+__pycache__
+.pytest_cache
+*.bundle
