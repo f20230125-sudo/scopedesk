@@ -1,0 +1,27 @@
+name: ScopeDesk checks
+on: [push, pull_request]
+jobs:
+  sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q --basetemp=.local/pytest
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env: {POSTGRES_USER: scope, POSTGRES_PASSWORD: scope, POSTGRES_DB: scope_test}
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q --basetemp=.local/pytest
+        env:
+          SCOPEDESK_TEST_DATABASE_URL: postgresql://scope:scope@localhost:5432/scope_test

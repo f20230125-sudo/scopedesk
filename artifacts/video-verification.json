@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-26T07:41:41.412Z",
+  "seconds": 71.32,
+  "width": 1440,
+  "height": 960,
+  "file": "ScopeDesk-Demo.webm",
+  "bytes": 12202243,
+  "framesChecked": [
+    10,
+    35,
+    55,
+    68
+  ],
+  "playable": true
+}
