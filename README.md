@@ -1,6 +1,6 @@
 # ScopeDesk
 
-Latest local checkpoint, 26 October 2026: **100 automated checks pass**, including hosted CRM-link configuration. Vercel project creation/linking is complete; no application is deployed. Production navigation uses the validated `SCOPEDESK_LOOPDESK_URL` and has no localhost default. Earlier counts below describe prior checkpoints. See [deployment status](docs/deployment.md).
+Latest checkpoint, 26 October 2026: **100 checks pass on SQLite and PostgreSQL in [Linux CI](https://github.com/f20230125-sudo/scopedesk/actions/runs/40376473352)**, including hosted CRM-link configuration. Vercel project creation/linking is complete; no application is deployed. Production navigation uses the validated `SCOPEDESK_LOOPDESK_URL` and has no localhost default. Earlier counts below describe prior checkpoints. See [deployment status](docs/deployment.md).
 
 Security review, 26 October 2026: **92 automated checks pass**. Fixed oversized-integer crashes, production configuration gaps, reset-cookie replay and resource accumulation; added host/origin checks, persistent request limits and atomic quotas. The 40-check attack browser journey and both original browser workflows pass locally. See [security report](https://github.com/f20230125-sudo/loopdesk/blob/main/docs/security-review/README.md). Production now requires explicit `SCOPEDESK_TRUSTED_HOSTS` in addition to PostgreSQL and a random session secret. Reset revokes the previous workspace cookie; retained data awaits expiry cleanup. Earlier release counts below are historical.
 
@@ -67,7 +67,7 @@ Statuses progress through **Needs clarification → Ready for review → Reviewe
 
 Browser scripts default to the existing workspace installation at `D:/codex/rx-market-pulse/dashboard/package.json`; set `SCOPEDESK_BROWSER_PACKAGE` to a package path containing the pinned Playwright/axe dependencies elsewhere. Set `SCOPEDESK_URL` and `LOOPDESK_URL` for other local endpoints. Browser artifacts include screenshots, print rendering, actual downloaded briefs and handoffs, accessibility reports and recorded checks. Automated accessibility scans are limited to detectable issues and do not establish full accessibility conformance.
 
-For a dedicated PostgreSQL test database, set `SCOPEDESK_TEST_DATABASE_URL`, then run `scripts/manage.py test-postgres`. Each DB fixture creates and drops only a unique `scopedesk_test_*` schema. LoopDesk uses `LOOPDESK_TEST_DATABASE_URL` and unique `loopdesk_test_*` schemas. **Neither PostgreSQL path nor hosted HTTPS has been verified here.** CI configurations are prepared, not claimed as remotely executed.
+For a dedicated PostgreSQL test database, set `SCOPEDESK_TEST_DATABASE_URL`, then run `scripts/manage.py test-postgres`. Each DB fixture creates and drops only a unique `scopedesk_test_*` schema. LoopDesk uses `LOOPDESK_TEST_DATABASE_URL` and unique `loopdesk_test_*` schemas. Both apps now pass their PostgreSQL CI suites; exact commits and run evidence are in `artifacts/ci-verification.json`. Production Neon connectivity and hosted HTTPS still require verification.
 
 ## Architecture and handoff
 
