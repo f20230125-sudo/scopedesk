@@ -1,4 +1,6 @@
-Security follow-up, 26 October 2026: current suite **92 passing checks** (`artifacts/security-pytest.xml`). The earlier figures below document the initial release. The focused 17-probe retest, 1,009 mutation/parser cases and 40-check attack browser journey are recorded in `../../security-review/README.md`. Both original browser journeys pass after the fixes. PostgreSQL and hosted verification remain pending.
+Latest verification, 26 October 2026: **100 checks pass on SQLite and PostgreSQL in Linux CI**. See `artifacts/ci-verification.json` and [the successful run](https://github.com/f20230125-sudo/scopedesk/actions/runs/40376473352). The initial CI temporary-directory setup failure was corrected by using the project launcher; no test assertions were removed. Hosted verification remains pending.
+
+Historical security follow-up: **92 passing checks** (`artifacts/security-pytest.xml`). Earlier figures below document the initial release. The focused 17-probe retest, 1,009 mutation/parser cases and 40-check attack browser journey are recorded in `../../security-review/README.md`. Both original browser journeys pass after the fixes.
 
 # Verification report — 26 October 2026
 
@@ -32,10 +34,10 @@ The worked workflow is designed for approximately five minutes. The automated ru
 
 `scripts/package-release.py` builds allowlisted public-source and Windows offline archives including both apps and matching cached pinned wheels. It extracts to a fresh D: directory, creates two clean virtual environments, installs with `--no-index`, runs migrations, starts both apps on temporary ports, reviews a valid scope over HTTP, exports its JSON, imports it into LoopDesk and repeats confirmation with the same opportunity result. It checks separate cookies in one cookie jar. See the release's `OFFLINE-VERIFICATION.json` and `ScopeDesk-Release.json` for the actual execution result/checksum. The package is intended for the existing Windows x64/Python 3.14 installation; no claim is made about offline wheels for other operating systems or Python ABIs.
 
-## PostgreSQL: not executed
+## PostgreSQL: CI passed; Neon pending
 
-Both database adapters and forward-only migrations support a psycopg path. Tests can create/drop unique per-test schemas on dedicated PostgreSQL databases. No PostgreSQL connection is available here, so locking, constraints and all workflows still require execution on that backend. Prepared CI jobs have not been run remotely. SQLite success does not establish PostgreSQL success.
+Database adapters and forward-only migrations pass against the real PostgreSQL CI service. Tests create/drop unique per-test schemas and exercise locking, constraints, rollback and workflows. Production Neon networking, pooling, credentials and persistence still need separate verification.
 
 ## Hosted HTTPS: not executed
 
-A fresh Vercel project read returned team-access HTTP 403. No ScopeDesk deployment or provisioned persistent PostgreSQL database exists. Secure-cookie/HSTS guards are prepared; no hosted availability, persistence, HTTPS journey or public URL is claimed. See `deployment.md` for the remaining provider-dependent work. Publication permission is already recorded; university submission remains manual.
+Vercel team access is now working and the separate project is linked. No application deployment or provisioned production PostgreSQL database exists. No hosted availability, persistence or HTTPS journey is claimed. See `deployment.md` for the remaining provider-dependent work. Publication permission is already recorded; university submission remains manual.
