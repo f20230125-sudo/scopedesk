@@ -1,0 +1,18 @@
+Please confirm the following scope details:
+
+1. S2-1: equipment allocations total 90; included quantity is 70. Reuse and destruction cannot claim the same whole item.
+Source: S2:R1:item, S2:R1:quantity, S2:R1:site, S2:R1:identifier, S2:R1:category, S2:R1:unit, S1:L3
+
+2. Laptop at all sites: requested 120, allocated 140. Exact counts must agree.
+Source: S1:L1, S2:R1:item, S2:R1:quantity, S2:R1:site, S2:R1:identifier, S2:R1:category, S2:R1:unit, S2:R2:item, S2:R2:quantity, S2:R2:site, S2:R2:identifier, S2:R2:category, S2:R2:unit, S1:L3
+
+3. Laptop at Dubai: requested 80, allocated 90. Exact counts must agree.
+Source: S1:L1, S2:R1:item, S2:R1:quantity, S2:R1:site, S2:R1:identifier, S2:R1:category, S2:R1:unit, S1:L3
+
+4. Laptop at Sharjah: requested 40, allocated 50. Exact counts must agree.
+Source: S1:L1, S2:R2:item, S2:R2:quantity, S2:R2:site, S2:R2:identifier, S2:R2:category, S2:R2:unit
+
+5. Dubai: off-site destroy conflicts with the recorded on-site restriction.
+Source: S1:L4, S2:R3:item, S2:R3:quantity, S2:R3:site, S2:R3:identifier, S2:R3:category, S2:R3:unit
+
+We will update the reviewed scope after your clarification.

@@ -1,0 +1,82 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(process.env.SCOPEDESK_BROWSER_PACKAGE||'D:/codex/rx-market-pulse/dashboard/package.json');
+const {chromium}=require('playwright');
+const {default:AxeBuilder}=require('@axe-core/playwright');
+const scope=process.env.SCOPEDESK_URL||'http://127.0.0.1:5058';
+const loop=process.env.LOOPDESK_URL||'http://127.0.0.1:5055';
+const root=path.resolve('artifacts');await fs.mkdir(root,{recursive:true});
+const browser=await chromium.launch({headless:true});
+const context=await browser.newContext({viewport:{width:1440,height:1000}});
+const p=await context.newPage();context.setDefaultTimeout(12000);
+const checks=[],scans=[],errors=[],serverErrors=[];
+p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.status()>=500)serverErrors.push({url:r.url(),status:r.status()});});
+function check(name,value=true){assert.ok(value,name);checks.push(name);}
+async function capture(name,width=1440,height=1000){await p.setViewportSize({width,height});await p.evaluate(()=>document.fonts.ready);check(`${name}: viewport contains layout`,!(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth)));await p.screenshot({path:path.join(root,name+'.png'),fullPage:true});}
+async function audit(name){const result=await new AxeBuilder({page:p}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();const violations=result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))}));await fs.writeFile(path.join(root,name+'-axe.json'),JSON.stringify(violations,null,2));assert.deepEqual(violations,[],`${name} accessibility`);scans.push(name);}
+async function download(link,file){const [d]=await Promise.all([p.waitForEvent('download'),link.click()]);await d.saveAs(path.join(root,file));return fs.readFile(path.join(root,file),'utf8');}
+async function inputState(state,reason){await p.locator('#raw-editor').evaluate(e=>e.open=true);await p.getByLabel('Scope state',{exact:true}).fill(JSON.stringify(state,null,2));await p.getByLabel('Correction or review decision',{exact:true}).fill(reason);await p.getByRole('button',{name:'Save scope & recalculate'}).click();}
+try{
+  await p.goto(scope);await capture('landing-desktop');await audit('landing-desktop');
+  await p.keyboard.press('Tab');check('Keyboard skip navigation',await p.getByRole('link',{name:'Skip to content'}).evaluate(e=>e===document.activeElement));
+  await p.getByRole('button',{name:'Open demo workspace'}).click();await capture('cases-desktop');await audit('cases-desktop');
+  check('Two fictional demonstrations are available',await p.locator('.case-card').count()===2);
+  await p.locator('.case-card').filter({hasText:'Two-site laptop refresh'}).click();
+  const caseUrl=p.url();const cid=caseUrl.split('/').at(-1);const started=Date.now();
+  check('All planted conflict types appear',(await p.locator('.finding').allTextContents()).join(' ').includes('equipment_overlap')&&(await p.locator('.finding').allTextContents()).join(' ').includes('count_mismatch')&&(await p.locator('.finding').allTextContents()).join(' ').includes('onsite_conflict'));
+  check('Review blocked while logical conflicts remain',await p.getByRole('button',{name:'Review & create revision'}).isDisabled());
+  await p.locator('.finding a.ref').first().click();
+  check('Source link resolves and receives target',await p.evaluate(()=>Boolean(document.getElementById(decodeURIComponent(location.hash.slice(1))))));
+  await capture('conflicts-desktop');await audit('conflicts-desktop');await capture('conflicts-mobile',390,844);await audit('conflicts-mobile');await p.setViewportSize({width:1440,height:1000});
+  const draft=await download(p.getByRole('button',{name:'Download edited draft'}),'clarification-DRAFT.txt');check('Clarification draft names actual conflict and source',draft.includes('on-site restriction')&&draft.includes('S1:L4'));
+  await p.getByText('Fictional customer clarification for this demonstration',{exact:true}).click();await p.getByRole('button',{name:'Use fictional clarification text'}).click();await p.getByRole('button',{name:'Record source statement'}).click();
+  check('Customer clarification is an immutable labelled source',(await p.locator('.source').allTextContents()).join(' ').includes('customer clarification'));
+  await p.getByRole('button',{name:'Load worked correction'}).click();await p.getByRole('button',{name:'Save scope & recalculate'}).click();
+  check('Corrections clear all blocking findings',await p.locator('.finding.blocking').count()===0);
+  check('Original identifiers remain visible',(await p.locator('.source').allTextContents()).join(' ').includes('0001'));
+  await capture('ready-desktop');await audit('ready-desktop');
+  await p.getByRole('button',{name:'Review & create revision'}).click();const briefUrl=p.url();
+  check('Review creates revision 1',await p.locator('.brief .badge').textContent().then(t=>t.includes('Revision 1')));
+  const counts=await p.locator('.brief tbody tr').allTextContents();check('Reviewed brief separates equipment and loose/embedded media',counts.some(t=>t.includes('embedded media'))&&counts.some(t=>t.includes('loose media'))&&counts.some(t=>t.includes('equipment')));
+  check('Every brief citation resolves',await p.locator('.brief a.ref').evaluateAll(links=>links.every(a=>Boolean(document.getElementById(decodeURIComponent(a.hash.slice(1)))))));
+  await capture('reviewed-brief-desktop');await audit('reviewed-brief-desktop');
+  await p.emulateMedia({media:'print'});check('Print hides application controls',await p.locator('.masthead').evaluate(e=>getComputedStyle(e).display==='none'));await p.screenshot({path:path.join(root,'reviewed-brief-print.png'),fullPage:true});await p.emulateMedia({media:'screen'});
+  const json1=await download(p.getByRole('link',{name:'Download reviewed JSON'}),'reviewed-r1.json');
+  check('Handoff excludes original serial values',!json1.includes('0001')&&!json1.includes('raw_text'));
+  const html=await download(p.getByRole('link',{name:'Download standalone HTML'}),'reviewed-r1.html');check('HTML download contains printable brief and embedded styles',html.includes('Revision 1')&&html.includes('<style>'));
+  const cookies=await context.cookies();check('ScopeDesk uses its own cookie',cookies.some(c=>c.name==='scopedesk_session'));
+  await p.goto(loop);await p.getByRole('button',{name:'Try demo'}).click();await p.goto(loop+'/scope-import');
+  await p.getByLabel('Reviewed ScopeDesk JSON').setInputFiles(path.join(root,'reviewed-r1.json'));await p.getByRole('button',{name:'Preview scope import'}).click();
+  await p.getByLabel('Organisation',{exact:true}).selectOption({label:'Cedar Circuit'});await p.getByLabel('Contact',{exact:true}).selectOption({label:'Alex Example 01 · Cedar Circuit'});
+  await capture('loopdesk-import-preview');await audit('loopdesk-import-preview');await capture('loopdesk-import-mobile',390,844);await audit('loopdesk-import-mobile');await p.setViewportSize({width:1440,height:1000});
+  const importUrl=p.url();await p.getByRole('button',{name:'Confirm reviewed scope import'}).click();const opportunity=p.url();
+  check('Handoff creates an ITAD opportunity with unknown value',(await p.locator('main').innerText()).includes('IT asset disposition')&&(await p.locator('main').innerText()).includes('Not estimated'));
+  check('Next action comes from the reviewed scope',(await p.locator('.next-action').innerText()).includes('access windows'));
+  await p.goto(importUrl);await p.getByRole('button',{name:'Confirm reviewed scope import'}).click();check('Repeated confirmation returns the same opportunity',p.url()===opportunity);
+  await p.getByRole('link',{name:'Reviewed ScopeDesk history'}).click();check('Scope history contains a single received revision',await p.getByRole('heading',{name:'ScopeDesk · Revision 1',exact:true}).count()===1);
+  await p.goto(opportunity);await p.getByRole('link',{name:'Edit opportunity'}).click();await p.getByLabel('Stage *',{exact:true}).selectOption('Proposal');await p.getByLabel('Owner *',{exact:true}).fill('Existing reviewer');await p.getByLabel('Estimated value (AED)',{exact:true}).fill('2500');await p.getByRole('button',{name:'Save opportunity'}).click();
+  await p.goto(caseUrl);const state=JSON.parse(await p.locator('#scope-state').inputValue());state.assumptions.push({text:'Final access window is subject to customer confirmation.',refs:['S1:L5']});
+  await inputState(state,'Retain access-window uncertainty as a visible assumption.');
+  check('Scope edit supersedes the first revision',(await p.locator('#revisions').innerText()).includes('Superseded'));
+  const old=await p.request.get(`${caseUrl}/handoff/1.json`);check('Superseded scope cannot produce a fresh handoff',old.status()===409);
+  await p.getByRole('button',{name:'Review & create revision'}).click();check('Second revision reviewed with visible assumptions',(await p.locator('.brief .badge').textContent()).includes('Reviewed with assumptions'));
+  await download(p.getByRole('link',{name:'Download reviewed JSON'}),'reviewed-r2.json');
+  await p.goto(loop+'/scope-import');await p.getByLabel('Reviewed ScopeDesk JSON').setInputFiles(path.join(root,'reviewed-r2.json'));await p.getByRole('button',{name:'Preview scope import'}).click();await p.getByRole('button',{name:'Confirm reviewed scope import'}).click();
+  check('Newer revision attaches to the existing opportunity',p.url()===opportunity);
+  check('Newer scope preserves stage owner and estimate',(await p.locator('main').innerText()).includes('Existing reviewer')&&(await p.locator('main').innerText()).includes('AED 2,500.00')&&(await p.locator('main').innerText()).includes('Proposal'));
+  await p.getByRole('link',{name:'Reviewed ScopeDesk history'}).click();check('Both immutable received revisions are accessible',await p.locator('main section.panel').count()===2);await capture('loopdesk-scope-history');await audit('loopdesk-scope-history');
+  const bothCookies=await context.cookies();check('Both applications coexist with separate cookies',bothCookies.some(c=>c.name==='session')&&bothCookies.some(c=>c.name==='scopedesk_session'));
+  const workedSeconds=Number(((Date.now()-started)/1000).toFixed(1));
+  await p.goto(scope+'/cases');await p.getByRole('link',{name:'New enquiry',exact:true}).click();await p.getByLabel('Client display name').fill('Boundary Demo');await p.getByLabel('Case title').fill('Manual CSV mapping');await p.getByLabel('Original enquiry').fill('Two laptops at Dubai. Reuse equipment.');await p.getByRole('button',{name:'Create case'}).click();
+  const uploadUrl=p.url();await p.getByText('Import another inventory',{exact:true}).click();await p.getByLabel('UTF-8 CSV',{exact:true}).setInputFiles({name:'register.csv',mimeType:'text/csv',buffer:Buffer.from('item;quantity;site;identifier\nLaptop;2;Dubai;00007\n')});await p.getByLabel('Import mode').selectOption('quantity');await p.getByLabel('Delimiter',{exact:true}).selectOption(';');await p.getByRole('button',{name:'Map inventory columns'}).click();await p.getByLabel('Category if no category column').selectOption('equipment');await p.getByRole('button',{name:'Preview mapped rows'}).click();check('Mapped preview preserves leading zeros',(await p.locator('main').innerText()).includes('00007'));await capture('csv-mapping-desktop');await audit('csv-mapping-desktop');await p.getByRole('button',{name:'Confirm inventory import'}).click();check('Inventory import returns the real case',p.url()===uploadUrl);
+  const stale=await context.newPage();await stale.goto(uploadUrl);const oldVersion=await stale.locator('#scope-form input[name=version]').inputValue();await p.getByLabel('Clarification or statement',{exact:true}).fill('Manual reviewer statement.');await p.getByRole('button',{name:'Record source statement'}).click();
+  await stale.locator('#raw-editor').evaluate(e=>e.open=true);await stale.getByLabel('Correction or review decision').fill('Stale edit must fail.');await stale.getByRole('button',{name:'Save scope & recalculate'}).click();check('Stale browser edit is rejected',(await stale.locator('main').innerText()).includes('case changed'));await stale.close();
+  const other=await browser.newContext();const op=await other.newPage();await op.goto(scope);await op.getByRole('button',{name:'Open demo workspace'}).click();const denied=await op.goto(caseUrl);check('Separate workspace cannot read another case',denied.status()===404);await other.close();
+  await p.goto(scope+'/cases');await p.locator('.case-card').filter({hasText:'Reuse equipment, destroy embedded media'}).click();check('Valid reuse-plus-drive-destruction example has no blockers',await p.locator('.finding.blocking').count()===0);
+  await capture('valid-case-mobile',390,844);await audit('valid-case-mobile');
+  assert.deepEqual(errors,[],'Browser errors');assert.deepEqual(serverErrors,[],'Server errors');
+  const result={verifiedAt:new Date().toISOString(),backend:'SQLite',browser:browser.version(),businessResponses:'real local Flask services; no mocking',checks,checkCount:checks.length,accessibilityScans:scans,automatedViolations:0,errors,serverErrors,automatedWorkedJourneySeconds:workedSeconds,humanFiveMinuteTiming:'Not measured; automated run includes captures and audits.',postgres:'not run',hosted:'not run'};
+  await fs.writeFile(path.join(root,'browser-verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
+}finally{await context.close();await browser.close();}
