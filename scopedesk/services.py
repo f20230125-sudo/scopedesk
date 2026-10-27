@@ -181,6 +181,21 @@ def get_revision(db,wid,cid,revision):
     return r
 
 
+def review_assumptions(state,origin):
+    assumptions = list(state["assumptions"])
+    referenced = {ref for key in ("allocations","requirements","media_actions","assumptions","followups") for row in state[key] for ref in row["refs"]}
+    referenced.update(ref for row in list(state["overrides"].values())+list(state["duplicate_decisions"].values()) for ref in row["refs"])
+    index = d.ref_index(origin)
+    assumption_sources = {source["id"] for source in origin if source["kind"] == "assumption"}
+    for ref in sorted(referenced):
+        if ref.split(":")[0] in assumption_sources and not any(ref in a["refs"] for a in assumptions):
+            assumptions.append(dict(text=index[ref],refs=[ref]))
+    for req in state["requirements"]:
+        if req["precision"] == "approximate" and req["acknowledged"] and req["basis"].strip():
+            assumptions.append(dict(text=f"Approximate count basis: {req['basis']}",refs=req["refs"]))
+    return assumptions,referenced
+
+
 def review(db,wid,cid,version):
     with db.transaction():
         c = case(db,wid,cid)
@@ -193,17 +208,7 @@ def review(db,wid,cid,version):
         latest = db.one("SELECT max(revision) AS n FROM revisions WHERE workspace_id=? AND case_id=?",(wid,cid))
         number = (latest["n"] or 0)+1
         state = c["state"]
-        assumptions = list(state["assumptions"])
-        referenced = {ref for key in ("allocations","requirements","media_actions","assumptions","followups") for row in state[key] for ref in row["refs"]}
-        referenced.update(ref for row in list(state["overrides"].values())+list(state["duplicate_decisions"].values()) for ref in row["refs"])
-        index = d.ref_index(origin)
-        assumption_sources = {source["id"] for source in origin if source["kind"] == "assumption"}
-        for ref in sorted(referenced):
-            if ref.split(":")[0] in assumption_sources and not any(ref in a["refs"] for a in assumptions):
-                assumptions.append(dict(text=index[ref],refs=[ref]))
-        for req in state["requirements"]:
-            if req["precision"] == "approximate" and req["acknowledged"] and req["basis"]:
-                assumptions.append(dict(text=f"Approximate count basis: {req['basis']}",refs=req["refs"]))
+        assumptions,referenced = review_assumptions(state,origin)
         reviewed_at = stamp()
         review_status = "Reviewed with assumptions" if assumptions else "Reviewed"
         scope = d.grouped_scope(inventory,state)

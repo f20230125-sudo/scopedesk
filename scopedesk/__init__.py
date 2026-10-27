@@ -13,6 +13,7 @@ from werkzeug.exceptions import HTTPException, SecurityError
 from . import domain as d, services as s
 from .db import get_db, migrate
 from . import security
+from .presentation import finding_groups, reference_summary
 
 
 def create_app(config=None):
@@ -58,17 +59,20 @@ def create_app(config=None):
 
     @app.context_processor
     def context():
-        return dict(csrf_token=csrf_token,workspace=getattr(g,"wid",None),loopdesk_url=app.config["LOOPDESK_URL"])
+        return dict(csrf_token=csrf_token,workspace=getattr(g,"wid",None),loopdesk_url=app.config["LOOPDESK_URL"],reference_summary=reference_summary)
 
     @app.before_request
     def protect():
+        g.wid = None
         if isinstance(request.routing_exception,SecurityError):
             return Response("Untrusted request host.\n",status=400,content_type="text/plain")
         if request.method == "POST":
             security.check_origin()
             if not session.get("csrf") or not hmac.compare_digest(request.form.get("csrf_token","").encode(),session["csrf"].encode()):
                 abort(400,"Invalid security token. Reload the form.")
-        if request.endpoint not in {"landing","demo","static","health"}:
+        if request.endpoint is None and session.get("workspace_id") and security.active_workspace(get_db(),session["workspace_id"],s.stamp()):
+            g.wid = session["workspace_id"]
+        if request.endpoint is not None and request.endpoint not in {"landing","demo","static","health"}:
             wid = session.get("workspace_id")
             if not security.active_workspace(get_db(),wid,s.stamp()):
                 session.pop("workspace_id",None)
@@ -120,13 +124,28 @@ def create_app(config=None):
 
     @app.get("/cases")
     def cases():
+        from .demo import EXAMPLES
         items = get_db().all("SELECT * FROM cases WHERE workspace_id=? ORDER BY created_at,id",(g.wid,))
         for c in items:
             c["state"] = json.loads(c["state"])
             revs = s.revision_list(get_db(),g.wid,c["id"])
             c["status"] = revs[0]["status"] if revs and not revs[0]["superseded"] else d.status(s.rows(get_db(),g.wid,c["id"]),c["state"])
             c["blockers"] = sum(f["blocking"] for f in d.findings(s.rows(get_db(),g.wid,c["id"]),c["state"]))
-        return render_template("cases.html",cases=items)
+        examples = [dict(value,key=key,loaded=next((c for c in items if c["client"] == value["client"] and c["title"] == value["title"]),None)) for key,value in EXAMPLES.items()]
+        return render_template("cases.html",cases=items,examples=examples,case_limit=20)
+
+    @app.post("/cases/examples")
+    def load_example():
+        from .demo import EXAMPLES,create_example
+        key = request.form.get("example","")
+        if key not in EXAMPLES:
+            raise d.ValidationError("Choose one of the three available fictional examples.")
+        example = EXAMPLES[key]
+        existing = get_db().one("SELECT id FROM cases WHERE workspace_id=? AND client=? AND title=? ORDER BY created_at,id",(g.wid,example["client"],example["title"]))
+        if existing:
+            return redirect(url_for("case_detail",cid=existing["id"]),303)
+        cid = create_example(get_db(),g.wid,key)
+        return redirect(url_for("case_detail",cid=cid),303)
 
     @app.route("/cases/new",methods=["GET","POST"])
     def new_case():
@@ -143,7 +162,8 @@ def create_app(config=None):
         found = d.findings(inventory,c["state"])
         revs = s.revision_list(get_db(),g.wid,cid)
         current_status = revs[0]["status"] if revs and not revs[0]["superseded"] else d.status(inventory,c["state"])
-        return render_template("case.html",case=c,rows=d.effective_rows(inventory,c["state"]),proposed=d.grouped_scope(inventory,c["state"]),sources=origin,references=d.ref_index(origin),findings=found,status=current_status,blockers=sum(f["blocking"] for f in found),revisions=revs,draft=d.clarification_draft(found),state_json=json.dumps(c["state"],indent=2,ensure_ascii=False),audit=get_db().all("SELECT * FROM audit_events WHERE workspace_id=? AND case_id=? ORDER BY created_at DESC,id DESC",(g.wid,cid)))
+        assumptions,_ = s.review_assumptions(c["state"],origin)
+        return render_template("case.html",case=c,rows=d.effective_rows(inventory,c["state"]),proposed=d.grouped_scope(inventory,c["state"]),sources=origin,references=d.ref_index(origin),findings=found,finding_groups=finding_groups(found),assumption_count=len(assumptions),status=current_status,blockers=sum(f["blocking"] for f in found),revisions=revs,draft=d.clarification_draft(found),state_json=json.dumps(c["state"],indent=2,ensure_ascii=False),audit=get_db().all("SELECT * FROM audit_events WHERE workspace_id=? AND case_id=? ORDER BY created_at DESC,id DESC",(g.wid,cid)))
 
     @app.post("/cases/<cid>/preview")
     def import_preview(cid):
@@ -236,7 +256,8 @@ def create_app(config=None):
     @app.errorhandler(HTTPException)
     def http_error(error):
         response = error.get_response()
-        response.set_data(render_template("error.html",message=error.description,code=error.code))
+        message = "ScopeDesk encountered an unexpected error. Return to cases and try again." if error.code == 500 else error.description
+        response.set_data(render_template("error.html",message=message,code=error.code))
         response.content_type = "text/html; charset=utf-8"
         return response
 
